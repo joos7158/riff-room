@@ -550,7 +550,7 @@ async function loadAudio(file,name,demo){
   if(audio.src&&audio.src.startsWith('blob:'))URL.revokeObjectURL(audio.src);
   audio.src=URL.createObjectURL(file);
   const an=analyze(buf);
-  song={key:demo?'demo':(name+'|'+file.size),name,demo,buf,dur:buf.duration,peaks:an.peaks,peakMax:an.peakMax,fps:an.fps,est:an.est};
+  song={key:demo?'demo-v2':(name+'|'+file.size),name,demo,buf,dur:buf.duration,peaks:an.peaks,peakMax:an.peakMax,fps:an.fps,est:an.est};
   const saved=store.get('rr:'+song.key,null);
   S=Object.assign(JSON.parse(JSON.stringify(DEF)),saved||{});
   if(!S.analyzed){S.bpm=an.est.bpm;S.offset=an.est.offset;S.beats=4;S.analyzed=true;S.loopA=1;S.loopB=Math.min(2,lastBar());S.loopOn=true;
