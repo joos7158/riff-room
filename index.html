@@ -478,13 +478,17 @@ function analyze(buf){
   const lowAt=t0=>{let s=0;for(let j=0;;j++){const f=Math.round((t0+j*bt)*fps);if(f>=end)break;if(f<start)continue;let m=0;for(let d=-3;d<=3;d++){const v=cl[f+d]||0;if(v>m)m=v}s+=m}return s};
   if(lowAt(phaseT+bt/2)>lowAt(phaseT)*1.15)phaseT+=bt/2;
   // 마디 첫 박: 네 박 중 어디가 가장 센가 (저음 쪽 에너지가 없어 근사)
-  let kb=0,ks=-1;
+  let kb=0,ks=-1;const kss=[0,0,0,0];
   for(let k=0;k<4;k++){let s=0;
     for(let j=k;;j+=4){const t=phaseT+j*bt;const f=Math.round(t*fps);if(f>=end)break;if(f<start)continue;
       let m=0;for(let d=-3;d<=3;d++){const v=cl[f+d]||0;if(v>m)m=v}
       const r=rms[Math.min(n-1,f+4)]||0;s+=m+r/maxR*0.5}
-    if(s>ks){ks=s;kb=k}}
-  const t0=phaseT+kb*bt,bar=bt*4,firstT=first/fps;
+    kss[k]=s;if(s>ks){ks=s;kb=k}}
+  const firstT=first/fps;
+  // 점수가 비슷하면(1박·3박 킥처럼) 음악이 처음 들어오는 박을 마디 첫 박으로 본다
+  const jF=Math.round((firstT-phaseT)/bt);
+  if(Math.abs(phaseT+jF*bt-firstT)<0.12){const kF=mod(jF,4);if(kss[kF]>=ks*0.85)kb=kF}
+  const t0=phaseT+kb*bt,bar=bt*4;
   const m=Math.ceil((firstT-0.08-t0)/bar);
   const offset=t0+m*bar;
   return{peaks,peakMax,fps,est:{bpm,offset}};
