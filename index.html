@@ -485,9 +485,9 @@ function analyze(buf){
       const r=rms[Math.min(n-1,f+4)]||0;s+=m+r/maxR*0.5}
     kss[k]=s;if(s>ks){ks=s;kb=k}}
   const firstT=first/fps;
-  // 점수가 비슷하면(1박·3박 킥처럼) 음악이 처음 들어오는 박을 마디 첫 박으로 본다
+  // 음악이 박 위에서 시작하면 그 박을 마디 첫 박으로 본다 (못갖춘마디는 ±1박 버튼으로 고친다)
   const jF=Math.round((firstT-phaseT)/bt);
-  if(Math.abs(phaseT+jF*bt-firstT)<0.12){const kF=mod(jF,4);if(kss[kF]>=ks*0.85)kb=kF}
+  if(Math.abs(phaseT+jF*bt-firstT)<0.12){const kF=mod(jF,4);if(kss[kF]>=ks*0.5)kb=kF}
   const t0=phaseT+kb*bt,bar=bt*4;
   const m=Math.ceil((firstT-0.08-t0)/bar);
   const offset=t0+m*bar;
