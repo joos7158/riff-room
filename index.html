@@ -1073,7 +1073,7 @@ function renderTab(){
   $('#tabCode').value=JSON.stringify({data:D,start:T.start,tuning:T.tuning});
   const un=$('#tabUnsure');un.hidden=!D.unsure.length;un.innerHTML=D.unsure.map(u=>'<li>'+esc(u)+'</li>').join('');
   if(!$('#tabStatus').textContent)setTabStatus((T.demo?'예시 TAB · ':'')+(D.title?D.title+' · ':'')+D.bars.length+'마디 · '+TUNING_KR[T.tuning]+(D.source==='staff'?' · 오선보에서 줄·프렛을 정한 결과':''));
-  const VW=Math.max(320,v.clientWidth||640),per=VW<520?2:VW<900?3:4,pad=8,bw=(VW-pad*2)/per,LS=12,top=30,rowH=top+5*LS+34;
+  const VW=Math.max(320,v.clientWidth||640),maxN=Math.max(1,...D.bars.map(b=>b.notes.length)),per=clamp(Math.floor((VW-16)/(30+maxN*24)),1,4),pad=8,bw=(VW-pad*2)/per,LS=12,top=30,rowH=top+5*LS+34;
   const rows=Math.ceil(D.bars.length/per),VH=rows*rowH+4;
   let h=`<svg class="tabsvg" viewBox="0 0 ${VW} ${VH}" role="img" aria-label="리프 TAB ${D.bars.length}마디">`;
   D.bars.forEach((b,i)=>{
@@ -1084,12 +1084,17 @@ function renderTab(){
     h+=`<line class="bl" x1="${x0}" x2="${x0}" y1="${y0}" y2="${y0+5*LS}"/>`;
     if(c===per-1||i===D.bars.length-1)h+=`<line class="bl" x1="${x0+bw}" x2="${x0+bw}" y1="${y0}" y2="${y0+5*LS}"/>`;
     const inner=bw-26;
+    // 팜뮤트: 이어지는 구간마다 PM 한 번 + 점선
+    for(let j=0;j<b.notes.length;j++){if(!b.notes[j].pm)continue;let k=j;while(k+1<b.notes.length&&b.notes[k+1].pm)k++;
+      const xa=x0+14+(b.notes[j].t/bpb)*inner,xb=x0+14+(b.notes[k].t/bpb)*inner;
+      h+=`<text class="pm" x="${xa-6}" y="${y0-4}">PM</text>`;
+      if(xb-xa>14)h+=`<line class="st" stroke-dasharray="2 3" x1="${xa+10}" x2="${xb+4}" y1="${y0-7}" y2="${y0-7}"/>`;
+      j=k}
     b.notes.forEach((nt,j)=>{
       const x=x0+14+(nt.t/bpb)*inner;
       h+=`<g class="n" id="tn-${i}-${j}">`;
       nt.n.forEach(([st,f])=>{const y=y0+(st-1)*LS,lab=f<0?'x':String(f),w=lab.length*7+3;
         h+=`<rect class="fb" x="${x-w/2}" y="${y-6}" width="${w}" height="12"/><text class="fr" x="${x}" y="${y}">${lab}</text>`});
-      if(nt.pm)h+=`<text class="pm" x="${x-6}" y="${y0-4}">PM</text>`;
       if(nt.tech)h+=`<text class="pm" x="${x+5}" y="${y0-4}">${esc(nt.tech)}</text>`;
       const sy=y0+5*LS+6;
       if(nt.d<1){h+=`<line class="st" x1="${x}" x2="${x}" y1="${sy}" y2="${sy+12}"/>`;
