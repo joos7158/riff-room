@@ -435,12 +435,12 @@ function analyze(buf){
   const sr=buf.sampleRate,fps=100,hop=Math.floor(sr/fps);
   const a=buf.getChannelData(0),b=buf.numberOfChannels>1?buf.getChannelData(1):null;
   const n=Math.floor(a.length/hop);
-  const peaks=new Float32Array(n),en=new Float32Array(n),rms=new Float32Array(n);
-  let prev=0,peakMax=1e-6;
+  const peaks=new Float32Array(n),en=new Float32Array(n),enL=new Float32Array(n),rms=new Float32Array(n);
+  let prev=0,peakMax=1e-6,lp=0;const al=1-Math.exp(-2*Math.PI*150/sr);
   for(let f=0;f<n;f++){
-    let pk=0,s=0,s2=0;const i0=f*hop,i1=i0+hop;
-    for(let i=i0;i<i1;i++){const x=b?(a[i]+b[i])*0.5:a[i];const ax=x<0?-x:x;if(ax>pk)pk=ax;const d=x-prev;prev=x;s+=d*d;s2+=x*x}
-    peaks[f]=pk;if(pk>peakMax)peakMax=pk;en[f]=Math.log(1e-10+s/hop);rms[f]=Math.sqrt(s2/hop);
+    let pk=0,s=0,s2=0,sl=0;const i0=f*hop,i1=i0+hop;
+    for(let i=i0;i<i1;i++){const x=b?(a[i]+b[i])*0.5:a[i];const ax=x<0?-x:x;if(ax>pk)pk=ax;const d=x-prev;prev=x;s+=d*d;s2+=x*x;lp+=al*(x-lp);sl+=lp*lp}
+    peaks[f]=pk;if(pk>peakMax)peakMax=pk;en[f]=Math.log(1e-10+s/hop);enL[f]=Math.log(1e-10+sl/hop);rms[f]=Math.sqrt(s2/hop);
   }
   const o=new Float32Array(n);
   for(let f=1;f<n;f++){const d=en[f]-en[f-1];o[f]=d>0?d:0}
@@ -448,6 +448,11 @@ function analyze(buf){
   const c=new Float32Array(n),w=25;
   let maxR=0;for(let f=0;f<n;f++)if(rms[f]>maxR)maxR=rms[f];
   for(let f=0;f<n;f++){const lo=Math.max(0,f-w),hi=Math.min(n,f+w+1);const v=o[f]-(ps[hi]-ps[lo])/(hi-lo);c[f]=(v>0&&rms[f]>maxR*0.02)?v:0}
+  // 저음(킥·근음) 쪽 onset: 박 위치와 마디 첫 박을 고를 때 쓴다 (하이햇 엇박에 끌려가지 않게)
+  const oL=new Float32Array(n);for(let f=1;f<n;f++){const d=enL[f]-enL[f-1];oL[f]=d>0?d:0}
+  const psL=new Float64Array(n+1);for(let f=0;f<n;f++)psL[f+1]=psL[f]+oL[f];
+  const cl=new Float32Array(n);
+  for(let f=0;f<n;f++){const lo=Math.max(0,f-w),hi=Math.min(n,f+w+1);const v=oL[f]-(psL[hi]-psL[lo])/(hi-lo);cl[f]=(v>0&&rms[f]>maxR*0.02)?v:0}
   let first=0;for(let f=0;f<n;f++){if(rms[f]>maxR*0.08){first=f;break}}
   const start=first,end=Math.min(n,first+fps*120);
   const minLag=Math.floor(fps*60/200),maxLag=Math.ceil(fps*60/55);
@@ -467,14 +472,16 @@ function analyze(buf){
     if(m>bestS){bestS=m;bb=bpm;bph=mi}
   }
   const P=60*fps/bb;
-  const phaseT=((bph+0.5)/NB)*P/fps;
+  let phaseT=((bph+0.5)/NB)*P/fps;
   let bpm=Math.abs(bb-Math.round(bb))<0.15?Math.round(bb):Math.round(bb*100)/100;
   const bt=60/bpm;
+  const lowAt=t0=>{let s=0;for(let j=0;;j++){const f=Math.round((t0+j*bt)*fps);if(f>=end)break;if(f<start)continue;let m=0;for(let d=-3;d<=3;d++){const v=cl[f+d]||0;if(v>m)m=v}s+=m}return s};
+  if(lowAt(phaseT+bt/2)>lowAt(phaseT)*1.15)phaseT+=bt/2;
   // 마디 첫 박: 네 박 중 어디가 가장 센가 (저음 쪽 에너지가 없어 근사)
   let kb=0,ks=-1;
   for(let k=0;k<4;k++){let s=0;
     for(let j=k;;j+=4){const t=phaseT+j*bt;const f=Math.round(t*fps);if(f>=end)break;if(f<start)continue;
-      let m=0;for(let d=-3;d<=3;d++){const v=c[f+d]||0;if(v>m)m=v}
+      let m=0;for(let d=-3;d<=3;d++){const v=cl[f+d]||0;if(v>m)m=v}
       const r=rms[Math.min(n-1,f+4)]||0;s+=m+r/maxR*0.5}
     if(s>ks){ks=s;kb=k}}
   const t0=phaseT+kb*bt,bar=bt*4,firstT=first/fps;
